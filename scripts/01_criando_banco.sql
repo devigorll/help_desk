@@ -41,9 +41,9 @@ CREATE TABLE chamados_tb (
 	grau_urgencia VARCHAR(20) NOT NULL,
 	id_setor INT NOT NULL,
 	id_computador INT NOT NULL,
-	id_tecnico INT NOT NULL,
+	id_tecnico INT,
 	data_abertura DATETIME NOT NULL,
-	data_fechamento DATETIME NOT NULL,
+	data_fechamento DATETIME,
 
 	CONSTRAINT PK_CHAMADOS_TB PRIMARY KEY (id_chamado),
 
