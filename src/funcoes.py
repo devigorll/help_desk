@@ -1,7 +1,6 @@
 import pandas as pd
 import pyodbc
 
-
 # Conectando ao banco SQL Server
 def conecta_banco():
     try:
@@ -16,7 +15,6 @@ def conecta_banco():
         print(f"Erro ao conectar ao banco: {e}")
         return None
 
-
 def consulta_funcionarios():
     conn = conecta_banco()
 
@@ -27,13 +25,15 @@ def consulta_funcionarios():
     try:
         cursor = conn.cursor()
 
+        # Incluída a coluna 'senha' na query
         query = """
         SELECT
             id_funcionario,
             nome_funcionario,
             id_setor,
             id_computador,
-            administrador
+            administrador,
+            senha
         FROM funcionarios_tb
         """
 
@@ -49,6 +49,7 @@ def consulta_funcionarios():
                     "id_setor": row[2],
                     "id_computador": row[3],
                     "administrador": row[4],
+                    "senha": str(row[5]) if row[5] is not None else ""
                 }
             )
 
@@ -62,7 +63,6 @@ def consulta_funcionarios():
             cursor.close()
         if conn:
             conn.close()
-
 
 def consulta_detalhes_funcionario(id_funcionario):
     conn = conecta_banco()
@@ -108,7 +108,6 @@ def consulta_detalhes_funcionario(id_funcionario):
             cursor.close()
         if conn:
             conn.close()
-
 
 def inserir_chamado(
     id_funcionario,
@@ -170,7 +169,6 @@ def inserir_chamado(
         if conn:
             conn.close()
 
-
 def consulta_chamados_abertos():
     conn = conecta_banco()
 
@@ -229,7 +227,6 @@ def consulta_chamados_abertos():
         if conn:
             conn.close()
 
-
 def fechar_chamado(id_chamado, id_tecnico):
     conn = conecta_banco()
 
@@ -262,9 +259,7 @@ def fechar_chamado(id_chamado, id_tecnico):
         if conn:
             conn.close()
 
-
 def consulta_todos_chamados():
-    """Retorna todos os chamados em formato pandas DataFrame para alimentar os gráficos do Dashboard no Streamlit."""
     conn = conecta_banco()
 
     if conn is None:
@@ -288,7 +283,6 @@ def consulta_todos_chamados():
         LEFT JOIN funcionarios_tb t ON c.id_tecnico = t.id_funcionario
         """
 
-        # Utiliza o pandas para ler diretamente a query da conexão pyodbc
         df_chamados = pd.read_sql_query(query, conn)
 
         return True, df_chamados

@@ -17,28 +17,56 @@ st.set_page_config(
 # Estilo global dos gráficos
 sns.set_theme(style="whitegrid")
 
+# Inicialização das variáveis de sessão de autenticação
+if "usuario_logado" not in st.session_state:
+    st.session_state["usuario_logado"] = None
+
 # Sidebar - Login / Seleção de Funcionário
 st.sidebar.title("Login")
-st.sidebar.markdown("Insira seu usuário de Login:")
 
-sucesso_func, funcionarios = fn.consulta_funcionarios()
+# Se NINGUÉM estiver logado, exibe a interface de verificação de senha
+if st.session_state["usuario_logado"] is None:
+    st.sidebar.markdown("Selecione o usuário e digite sua senha:")
 
-if sucesso_func and funcionarios:
-    funcionario_selecionado = st.sidebar.selectbox(
-        "Selecione o funcionário",
-        options=funcionarios,
-        format_func=lambda funcionario: funcionario["nome_funcionario"]
-    )
+    sucesso_func, funcionarios = fn.consulta_funcionarios()
 
+    if sucesso_func and funcionarios:
+        funcionario_selecionado = st.sidebar.selectbox(
+            "Selecione o funcionário",
+            options=funcionarios,
+            format_func=lambda funcionario: funcionario["nome_funcionario"]
+        )
+
+        senha_digitada = st.sidebar.text_input("Senha", type="password")
+
+        if st.sidebar.button("🔑 Entrar", use_container_width=True):
+            if senha_digitada == funcionario_selecionado["senha"]:
+                st.session_state["usuario_logado"] = funcionario_selecionado
+                st.sidebar.success("Login realizado!")
+                st.rerun()
+            else:
+                st.sidebar.error("❌ Senha incorreta!")
+    else:
+        if not sucesso_func:
+            st.sidebar.error(f"Erro ao buscar funcionários: {funcionarios}")
+        else:
+            st.sidebar.warning("Nenhum funcionário cadastrado no sistema.")
+
+# Se JÁ ESTIVER LOGADO, exibe as opções do usuário logado
+else:
+    funcionario_selecionado = st.session_state["usuario_logado"]
+    st.sidebar.markdown(f"**Usuário:** {funcionario_selecionado['nome_funcionario']}")
+    
+    if st.sidebar.button("🚪 Sair", use_container_width=True):
+        st.session_state["usuario_logado"] = None
+        st.rerun()
+
+# Define as variáveis do usuário corrente para o restando da aplicação
+if st.session_state["usuario_logado"]:
+    funcionario_selecionado = st.session_state["usuario_logado"]
     administrador = funcionario_selecionado["administrador"]
     id_funcionario_logado = funcionario_selecionado["id_funcionario"]
-
 else:
-    if not sucesso_func:
-        st.sidebar.error(f"Erro ao buscar funcionários: {funcionarios}")
-    else:
-        st.sidebar.warning("Nenhum funcionário cadastrado no sistema.")
-
     funcionario_selecionado = None
     administrador = None
     id_funcionario_logado = None
@@ -204,7 +232,6 @@ if funcionario_selecionado:
                         fig, ax = plt.subplots(figsize=(6, 4))
                         order_cat = df_todos_chamados['categoria'].value_counts().index
                         
-                        # Passando hue e legend=False para evitar o FutureWarning do Seaborn
                         sns.countplot(
                             data=df_todos_chamados, 
                             y='categoria', 
@@ -256,7 +283,6 @@ if funcionario_selecionado:
                     if not df_resolvidos.empty:
                         fig, ax = plt.subplots(figsize=(10, 3.5))
                         
-                        # Agrupamento seguro independente da versão do Pandas
                         ranking_tecnicos = (
                             df_resolvidos.groupby('nome_tecnico')
                             .size()
@@ -276,7 +302,6 @@ if funcionario_selecionado:
                         ax.set_xlabel("Atendimentos Concluídos")
                         ax.set_ylabel("Técnico")
                         
-                        # Adiciona os rótulos de valores numéricos no fim de cada barra
                         max_val = ranking_tecnicos['quantidade'].max()
                         for i, v in enumerate(ranking_tecnicos['quantidade']):
                             ax.text(v + (max_val * 0.01 + 0.1), i, str(v), va='center', fontweight='bold')
@@ -291,4 +316,4 @@ if funcionario_selecionado:
                 st.error("Erro ao carregar dados para o Dashboard.")
 
 else:
-    st.info("Por favor, selecione um usuário no menu lateral para continuar.")
+    st.info("Por favor, selecione seu usuário e insira a senha na barra lateral para continuar.")
