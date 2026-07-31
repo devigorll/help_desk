@@ -1,6 +1,6 @@
 # 🎧 Help Desk
 
-> Status do Projeto: ⚠️ Em desenvolvimento
+> Status do Projeto: ✅ Concluído
 
 O **Help Desk** é um sistema para gerenciamento de chamados e suporte técnico. O foco principal do desenvolvimento no momento está na criação da estrutura da aplicação, integração com o banco de dados SQL Server e desenvolvimento da interface web utilizando Streamlit.
 
