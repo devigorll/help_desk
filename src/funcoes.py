@@ -1,7 +1,7 @@
 import pandas as pd
 import pyodbc
 
-# Conectando ao banco SQL Server
+# Conecta-se ao Banco
 def conecta_banco():
     try:
         conn = pyodbc.connect(
@@ -15,6 +15,8 @@ def conecta_banco():
         print(f"Erro ao conectar ao banco: {e}")
         return None
 
+
+# Consulta os funcionários para a lista de login
 def consulta_funcionarios():
     conn = conecta_banco()
 
@@ -64,6 +66,9 @@ def consulta_funcionarios():
         if conn:
             conn.close()
 
+
+
+# Consulta as informações do usuário de acoirdo com o loigi para preenchimento automático na hora de abrir chamnado
 def consulta_detalhes_funcionario(id_funcionario):
     conn = conecta_banco()
 
@@ -109,6 +114,9 @@ def consulta_detalhes_funcionario(id_funcionario):
         if conn:
             conn.close()
 
+
+
+# Função para criar chamado a partir do Insert no banco
 def inserir_chamado(
     id_funcionario,
     titulo,
@@ -169,6 +177,9 @@ def inserir_chamado(
         if conn:
             conn.close()
 
+
+
+# Função para retornar num Data Frame os chamados já abertos
 def consulta_chamados_abertos():
     conn = conecta_banco()
 
@@ -227,6 +238,8 @@ def consulta_chamados_abertos():
         if conn:
             conn.close()
 
+
+# Função para fecar os chamados (só administradores)
 def fechar_chamado(id_chamado, id_tecnico):
     conn = conecta_banco()
 
@@ -259,6 +272,8 @@ def fechar_chamado(id_chamado, id_tecnico):
         if conn:
             conn.close()
 
+
+# Função para geração dos gráficos 
 def consulta_todos_chamados():
     conn = conecta_banco()
 

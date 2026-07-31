@@ -7,17 +7,19 @@ from datetime import date
 
 import funcoes as fn
 
-# Configurando título da página do Streamlit
+
+# Essa bomba aqui pra gambiarra do rótulo X na horizobntal
+import altair as alt
+
 st.set_page_config(
     page_title="Help Desk",
     page_icon="💻",
     layout="wide"
 )
 
-# Estilo global dos gráficos
+# Estilo gloal dos gráficos
 sns.set_theme(style="whitegrid")
 
-# Inicialização das variáveis de sessão de autenticação
 if "usuario_logado" not in st.session_state:
     st.session_state["usuario_logado"] = None
 
@@ -52,7 +54,7 @@ if st.session_state["usuario_logado"] is None:
         else:
             st.sidebar.warning("Nenhum funcionário cadastrado no sistema.")
 
-# Se JÁ ESTIVER LOGADO, exibe as opções do usuário logado
+# Se JÁ ESTIVER LOGFADO, exibe as opções do usuário logado
 else:
     funcionario_selecionado = st.session_state["usuario_logado"]
     st.sidebar.markdown(f"**Usuário:** {funcionario_selecionado['nome_funcionario']}")
@@ -78,7 +80,6 @@ if funcionario_selecionado:
     # Busca detalhes de setor e computador do funcionário selecionado
     sucesso_det, detalhes = fn.consulta_detalhes_funcionario(id_funcionario_logado)
 
-    # Organização das Abas
     if administrador == 1 or administrador is True:
         tab1, tab2, tab3 = st.tabs([
             "🆕 Abrir chamado",
@@ -91,7 +92,7 @@ if funcionario_selecionado:
             "🔒 Área Restrita"
         ])
 
-    # --- ABA 1: ABRIR CHAMADO ---
+    # ---------------------------------------------------------------------- ABA 01: ABRIR CHAMADO -------------------------------------------------------------------
     with tab1:
         st.header("Abertura de Chamado")
 
@@ -144,7 +145,9 @@ if funcionario_selecionado:
                     else:
                         st.error(f"Erro ao registrar chamado: {msg}")
 
-    # --- ABA 2: FECHAR CHAMADO ---
+
+    # ---------------------------------------------------------------------- ABA 02: FECHAR CHAMADO -------------------------------------------------------------------
+
     with tab2:
         if administrador == 1 or administrador is True:
             st.header("Painel do Administrador - Fechamento de Chamados")
@@ -189,7 +192,11 @@ if funcionario_selecionado:
         else:
             st.warning("Esta aba é restrita apenas para administradores.")
 
-    # --- ABA 3: DASHBOARD & ESTATÍSTICAS (APENAS ADMIN) ---
+
+
+    # ---------------------------------------------------------------------- ABA 03: GRÁFICO E ESTATÍSTICAS -------------------------------------------------------------------
+
+
     if administrador == 1 or administrador is True:
         with tab3:
             st.header("📊 Painel Estatístico & Indicadores (KPIs)")
@@ -204,111 +211,133 @@ if funcionario_selecionado:
                 if 'data_fechamento' in df_todos_chamados.columns:
                     df_todos_chamados['data_fechamento'] = pd.to_datetime(df_todos_chamados['data_fechamento'])
 
-                # --- 1. CARDS / MÉTRICAS PRINCIPAIS ---
+                # Métricas e KPIs 
                 total_chamados = len(df_todos_chamados)
-                total_fechados = len(df_todos_chamados[df_todos_chamados['status'] == 'Fechado']) if 'status' in df_todos_chamados.columns else 0
-                total_abertos = total_chamados - total_fechados
+                
+                if 'status' in df_todos_chamados.columns:
+                    total_fechados = len(df_todos_chamados[df_todos_chamados['status'] == 'Fechado'])
+                    total_abertos = len(df_todos_chamados[df_todos_chamados['status'] != 'Fechado'])
+                else:
+                    total_fechados = 0
+                    total_abertos = total_chamados
+
+                taxa_resolucao = (total_fechados / total_chamados * 100) if total_chamados > 0 else 0
 
                 hoje = date.today()
                 if 'data_fechamento' in df_todos_chamados.columns and total_fechados > 0:
                     fechados_hoje = len(df_todos_chamados[df_todos_chamados['data_fechamento'].dt.date == hoje])
+                    
+                    # Cálculo de Tempo Médio de Resolução (SLA em Dias)
+                    df_resolvidos_tempo = df_todos_chamados.dropna(subset=['data_abertura', 'data_fechamento'])
+                    if not df_resolvidos_tempo.empty:
+                        dias_resolucao = (df_resolvidos_tempo['data_fechamento'] - df_resolvidos_tempo['data_abertura']).dt.total_seconds() / (24 * 3600)
+                        tempo_medio_dias = round(dias_resolucao.mean(), 1)
+                    else:
+                        tempo_medio_dias = 0
                 else:
                     fechados_hoje = 0
+                    tempo_medio_dias = 0
 
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Total Registrado", total_chamados)
-                m2.metric("Em Aberto", total_abertos)
-                m3.metric("Total Resolvidos", total_fechados)
-                m4.metric("Resolvidos Hoje", fechados_hoje)
+                # Blocos onde ficam as KPIs
+                st.subheader("📌 Visão Geral de Desempenho")
+                kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+
+                kpi1.metric(" Total Chamados", total_chamados)
+                kpi2.metric("⏳ Em Aberto", total_abertos)
+                kpi3.metric("✅ Resolvidos", total_fechados)
+                kpi4.metric("📈 Taxa de Resolução", f"{taxa_resolucao:.1f}%")
+                kpi5.metric("⏱️ SLA Médio", f"{tempo_medio_dias} dias")
 
                 st.divider()
 
-                # --- 2. GRÁFICOS CATEGORIA E URGÊNCIA ---
                 col_graf1, col_graf2 = st.columns(2)
 
+                # Gráfico 1: Chamados por Categoria (Colunas Verticais + Rótulos Horizontais)
                 with col_graf1:
-                    st.subheader("📌 Chamados por Categoria")
-                    if 'categoria' in df_todos_chamados.columns and not df_todos_chamados['categoria'].dropna().empty:
-                        fig, ax = plt.subplots(figsize=(6, 4))
-                        order_cat = df_todos_chamados['categoria'].value_counts().index
-                        
-                        sns.countplot(
-                            data=df_todos_chamados, 
-                            y='categoria', 
-                            order=order_cat, 
-                            hue='categoria', 
-                            palette='viridis', 
-                            legend=False, 
-                            ax=ax
-                        )
-                        ax.set_xlabel("Quantidade")
-                        ax.set_ylabel("")
-                        st.pyplot(fig)
-                    else:
-                        st.info("Sem dados de categoria registrados.")
+                    with st.container(border=True):
+                        st.subheader("📂 Chamados por Categoria")
+                        if 'categoria' in df_todos_chamados.columns and not df_todos_chamados['categoria'].dropna().empty:
+                            df_cat = df_todos_chamados['categoria'].value_counts().reset_index()
+                            df_cat.columns = ['Categoria', 'Quantidade']
 
+                            chart_cat = alt.Chart(df_cat).mark_bar(color="#4C78A8").encode(
+                                x=alt.X('Categoria:N', axis=alt.Axis(labelAngle=0, labelLimit=200), title="Categoria"),
+                                y=alt.Y('Quantidade:Q', title="Quantidade")
+                            ).properties(height=320)
+
+                            st.altair_chart(chart_cat, use_container_width=True)
+                        else:
+                            st.info("Sem dados de categoria registrados.")
+
+                # Gráfico 2: Chamados por Grau de Urgência (Colunas Verticais + Rótulos Horizontais)
                 with col_graf2:
-                    st.subheader("🚦 Chamados por Graus de Urgência")
-                    if 'grau_urgencia' in df_todos_chamados.columns and not df_todos_chamados['grau_urgencia'].dropna().empty:
-                        fig, ax = plt.subplots(figsize=(6, 4))
-                        order_urg = df_todos_chamados['grau_urgencia'].value_counts().index
-                        
-                        sns.countplot(
-                            data=df_todos_chamados, 
-                            x='grau_urgencia', 
-                            order=order_urg, 
-                            hue='grau_urgencia', 
-                            palette='rocket', 
-                            legend=False, 
-                            ax=ax
-                        )
-                        ax.set_xlabel("")
-                        ax.set_ylabel("Quantidade")
-                        plt.xticks(rotation=15)
-                        st.pyplot(fig)
-                    else:
-                        st.info("Sem dados de urgência registrados.")
+                    with st.container(border=True):
+                        st.subheader("🚨 Graus de Urgência")
+                        if 'grau_urgencia' in df_todos_chamados.columns and not df_todos_chamados['grau_urgencia'].dropna().empty:
+                            df_urg = df_todos_chamados['grau_urgencia'].value_counts().reset_index()
+                            df_urg.columns = ['Urgência', 'Quantidade']
 
-                st.divider()
+                            chart_urg = alt.Chart(df_urg).mark_bar(color="#E15759").encode(
+                                x=alt.X('Urgência:N', axis=alt.Axis(labelAngle=0, labelLimit=200), title="Urgência"),
+                                y=alt.Y('Quantidade:Q', title="Quantidade")
+                            ).properties(height=320)
 
-                # --- 3. RANKING DE TÉCNICOS ---
-                st.subheader("🏆 Ranking de Técnicos (Chamados Fechados)")
-                
-                if 'nome_tecnico' in df_todos_chamados.columns:
-                    df_resolvidos = df_todos_chamados[
-                        (df_todos_chamados['status'] == 'Fechado') & 
-                        (df_todos_chamados['nome_tecnico'].notna())
-                    ]
-                    
-                    if not df_resolvidos.empty:
-                        fig, ax = plt.subplots(figsize=(10, 3.5))
+                            st.altair_chart(chart_urg, use_container_width=True)
+                        else:
+                            st.info("Sem dados de urgência registrados.")
+
+                st.write("")
+
+
+                col_graf3, col_graf4 = st.columns([1.2, 0.8])
+
+                with col_graf3:
+                    with st.container(border=True):
+                        st.subheader("🏆 Ranking de Atendimento por Técnico")
                         
-                        ranking_tecnicos = (
-                            df_resolvidos.groupby('nome_tecnico')
-                            .size()
-                            .reset_index(name='quantidade')
-                            .sort_values(by='quantidade', ascending=False)
-                        )
-                        
-                        sns.barplot(
-                            data=ranking_tecnicos, 
-                            x='quantidade', 
-                            y='nome_tecnico', 
-                            hue='nome_tecnico', 
-                            palette='magma', 
-                            legend=False, 
-                            ax=ax
-                        )
-                        ax.set_xlabel("Atendimentos Concluídos")
-                        ax.set_ylabel("Técnico")
-                        
-                        max_val = ranking_tecnicos['quantidade'].max()
-                        for i, v in enumerate(ranking_tecnicos['quantidade']):
-                            ax.text(v + (max_val * 0.01 + 0.1), i, str(v), va='center', fontweight='bold')
+                        if 'nome_tecnico' in df_todos_chamados.columns:
+                            df_resolvidos = df_todos_chamados[
+                                (df_todos_chamados['status'] == 'Fechado') & 
+                                (df_todos_chamados['nome_tecnico'].notna())
+                            ]
                             
-                        st.pyplot(fig)
-                    else:
-                        st.info("Nenhum chamado foi resolvido por técnicos ainda.")
+                            if not df_resolvidos.empty:
+                                ranking_tecnicos = (
+                                    df_resolvidos.groupby('nome_tecnico')
+                                    .size()
+                                    .reset_index(name='Concluídos')
+                                    .sort_values(by='Concluídos', ascending=False)
+                                )
+                                
+                                st.bar_chart(ranking_tecnicos.set_index('nome_tecnico'), color="#59A14F", horizontal=True, use_container_width=True)
+                            else:
+                                st.info("Nenhum chamado foi encerrado por técnicos ainda.")
+                        else:
+                            st.info("Coluna de técnico não identificada na base.")
+
+                with col_graf4:
+                    with st.container(border=True):
+                        st.subheader("📊 Status Atual")
+                        
+                        df_status = pd.DataFrame({
+                            'Status': ['Em Aberto', 'Fechado'],
+                            'Total': [total_abertos, total_fechados]
+                        })
+                        
+                        st.dataframe(
+                            df_status,
+                            hide_index=True,
+                            use_container_width=True,
+                            column_config={
+                                "Status": st.column_config.TextColumn("Status"),
+                                "Total": st.column_config.ProgressColumn(
+                                    "Volume",
+                                    format="%d",
+                                    min_value=0,
+                                    max_value=max(total_chamados, 1)
+                                )
+                            }
+                        )
 
             elif sucesso_est and df_todos_chamados.empty:
                 st.info("Ainda não existem chamados registrados na base de dados.")
